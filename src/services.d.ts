@@ -1,3 +1,3 @@
 interface ReplicatedStorage extends Instance {
-    Assets: Folder & {[k in string]: Tool}
+	Assets: Folder & { [k in string]: Tool };
 }

@@ -6,16 +6,18 @@ import { Vector } from "@rbxts/serio";
 export const messaging = MessageEmitter.create<MessageData>();
 
 export const enum Message {
-  Sync,
-  Input,
-  Fire
+	Sync,
+	Input,
+	Fire,
+	Init,
 }
 
 export interface MessageData {
-  [Message.Sync]: SyncPayload<GlobalAtoms>,
-  [Message.Input]: string,
-  [Message.Fire]: {
-    DirectionVector: Vector,
-    Origin: Vector,
-  }
+	[Message.Sync]: SyncPayload<GlobalAtoms>;
+	[Message.Input]: string;
+	[Message.Fire]: {
+		DirectionVector: Vector;
+		Origin: Vector;
+	};
+	[Message.Init]: void;
 }
