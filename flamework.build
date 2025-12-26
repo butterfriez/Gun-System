@@ -1,0 +1,8 @@
+{
+	"version": 1,
+	"flameworkVersion": "1.3.2",
+	"identifiers": {
+		"gun:out/server/handlers/GunHandler/GunClass@Gun": "server/handlers/GunHandler/GunClass@Gun"
+	},
+	"metadata": {}
+}
