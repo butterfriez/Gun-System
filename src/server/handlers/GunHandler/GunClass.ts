@@ -13,6 +13,7 @@ export class Gun {
     private mouse: Mouse | undefined
     private raycastParams = new RaycastParams()
     private gunConfig
+    private debounce = false
 
     constructor(gunInstance: Tool) {
         this.gun = gunInstance
@@ -62,11 +63,16 @@ export class Gun {
         this.DisconnectEvents()
     }
 
-    private Activated() {
+    private Activated(d: Vector3, o: Vector3) {
+        if (this.debounce) return
+        this.debounce = true
+
         if (this.GetAmmo()! - 1 >= 0 && GetPlayerState(this.player.Name)?.canUseGun) {
             this.SetAmmo(this.GetAmmo()! - 1)
-            this.Fire()
+            this.Fire(d, o)
         }
+
+        task.delay(this.gunConfig.delay, () => this.debounce = false)
     }
 
     private SetAmmo(ammo: number) {
@@ -90,25 +96,11 @@ export class Gun {
             if (keycode === "R") {
                 this.Reload()
             }
-            if (keycode === "Fire") {
-                this.Activated()
-            }
         }))
 
         this.trash.add(messaging.server.on(Message.Fire, (p, {DirectionVector, Origin}) => {
-            const raycast = Workspace.Raycast(Origin, DirectionVector.mul(1000), this.raycastParams)
-            if (!raycast) return
-
-            const hit = raycast.Instance
-            const distance = raycast.Distance
-            const position = raycast.Position
-
-            const characterPos = this.player.Character?.PrimaryPart?.Position as Vector3
-            if (hit.FindFirstAncestorOfClass("Model")) {
-                const characterHit = hit.FindFirstAncestorOfClass("Model")
-                const human = characterHit!.FindFirstChild("Humanoid") as Humanoid
-                human.TakeDamage(this.gunConfig.damage)
-            }
+            if (this.player === p)
+            this.Activated(DirectionVector, Origin)
         }))
     }
 
@@ -138,8 +130,39 @@ export class Gun {
         }
     }
 
-    private Fire() {
+    private Fire(DirectionVector: Vector3, Origin: Vector3) {
         if (!this.mouse) return;
         
+        const raycast = Workspace.Raycast(Origin, DirectionVector.mul(this.gunConfig.distance), this.raycastParams)
+            if (!raycast) return
+
+            const hit = raycast.Instance
+            const distance = raycast.Distance
+            const position = raycast.Position
+
+            const characterPos = this.player.Character?.PrimaryPart?.Position as Vector3
+            
+            if (hit.FindFirstAncestorOfClass("Model")) {
+                const characterHit = hit.FindFirstAncestorOfClass("Model")
+                const human = characterHit!.FindFirstChild("Humanoid") as Humanoid
+                human.TakeDamage(this.gunConfig.damage)
+            }
+
+            const dist = (position.sub(characterPos)).Magnitude
+            const midpoint = characterPos.add(position).div(2)
+
+            const part = new Instance("Part")
+            part.Anchored = true
+            part.CanCollide = false
+            part.Size = new Vector3(0.2, 0.2, dist)
+            part.CFrame = CFrame.lookAt(midpoint, position)
+            part.Color = new Color3(1,1,0)
+            part.Material = Enum.Material.Neon
+            part.Parent = Workspace
+            part.Transparency = 0.8
+
+            this.raycastParams.AddToFilter(part)
+            
+            task.delay(0.3, () => part.Destroy())
     }
 }
