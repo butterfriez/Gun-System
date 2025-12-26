@@ -7,16 +7,13 @@ Designed to be simple, readable, and easy to extend.
 
 - Configurable weapon stats
 - Server-validated firing and damage
-- Client-side input and effects
-- Basic fire-rate protection
-- Hitscan raycasting
+- Client-side input
 
 ## Usage
 
 1. Define weapon stats in a shared config.
 2. Client sends fire requests with origin and direction.
 3. Server validates fire rate, raycasts, and applies damage.
-4. Visual effects run client-side only.
 
 ## Notes
 
