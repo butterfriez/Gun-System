@@ -1,14 +1,18 @@
-import { Players } from "@rbxts/services"
+import { Players, Workspace } from "@rbxts/services"
 import { Trash } from "@rbxts/trash"
 import { GunSettings } from "shared/core/GunSettings"
 import { Message, messaging } from "shared/messaging"
 import { GetGunState, SetGunState, UpdateGunState } from "shared/state/atoms/GunStates"
+import { GetPlayerState } from "shared/state/atoms/PlayerStates"
 
 export class Gun {
     private gun: Tool
     private player: Player
     private trash = new Trash()
     private maxAmmo: number
+    private mouse: Mouse | undefined
+    private raycastParams = new RaycastParams()
+    private gunConfig
 
     constructor(gunInstance: Tool) {
         this.gun = gunInstance
@@ -16,7 +20,13 @@ export class Gun {
         const player = Players.FindFirstChild(this.gun.GetAttribute("Player") as string)
         this.player = player as Player
 
+        this.raycastParams.FilterType = Enum.RaycastFilterType.Exclude
+        this.raycastParams.IgnoreWater = true
+        this.raycastParams.AddToFilter(this.gun)
+        this.raycastParams.AddToFilter(this.player.Character!)
+
         const defaultState = GunSettings[gunInstance.Name]
+        this.gunConfig = defaultState
 
         this.maxAmmo = defaultState.ammo
 
@@ -29,7 +39,7 @@ export class Gun {
 
         gunInstance.Equipped.Connect((m) => this.OnEquipped(m))
         gunInstance.Unequipped.Connect(() => this.OnUnequipped())
-        gunInstance.Activated.Connect(() => this.Activated())
+        //gunInstance.Activated.Connect(() => this.Activated())
         gunInstance.Destroying.Once(() => this.trash.destroy())
     }
 
@@ -40,6 +50,8 @@ export class Gun {
         }))
 
         this.ConnectEvents()
+        this.mouse = m
+        m.TargetFilter = this.player.Character
     }
 
     private OnUnequipped() {
@@ -51,8 +63,9 @@ export class Gun {
     }
 
     private Activated() {
-        if (this.GetAmmo()! - 1 >= 0) {
+        if (this.GetAmmo()! - 1 >= 0 && GetPlayerState(this.player.Name)?.canUseGun) {
             this.SetAmmo(this.GetAmmo()! - 1)
+            this.Fire()
         }
     }
 
@@ -72,13 +85,31 @@ export class Gun {
     }
 
     private ConnectEvents() {
-        const connection = messaging.server.on(Message.Input, (player, keycode) => {
+        this.trash.add(messaging.server.on(Message.Input, (player, keycode) => {
             if (this.player.Name !== player.Name) return
             if (keycode === "R") {
                 this.Reload()
             }
-        })
-        this.trash.add(connection)
+            if (keycode === "Fire") {
+                this.Activated()
+            }
+        }))
+
+        this.trash.add(messaging.server.on(Message.Fire, (p, {DirectionVector, Origin}) => {
+            const raycast = Workspace.Raycast(Origin, DirectionVector.mul(1000), this.raycastParams)
+            if (!raycast) return
+
+            const hit = raycast.Instance
+            const distance = raycast.Distance
+            const position = raycast.Position
+
+            const characterPos = this.player.Character?.PrimaryPart?.Position as Vector3
+            if (hit.FindFirstAncestorOfClass("Model")) {
+                const characterHit = hit.FindFirstAncestorOfClass("Model")
+                const human = characterHit!.FindFirstChild("Humanoid") as Humanoid
+                human.TakeDamage(this.gunConfig.damage)
+            }
+        }))
     }
 
     private DisconnectEvents() {
@@ -105,7 +136,10 @@ export class Gun {
                 reserved: 0
             }))
         }
+    }
 
-        print(GetGunState(this.player.Name))
+    private Fire() {
+        if (!this.mouse) return;
+        
     }
 }
